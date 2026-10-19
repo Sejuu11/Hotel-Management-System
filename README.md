@@ -1,12 +1,19 @@
 # Grand Palace Hotel Management System 🏨
 
+[![Render Deployment](https://img.shields.io/badge/Render-Web%20Service-46E3B7?style=for-the-badge&logo=render&logoColor=white)](DEPLOYMENT.md)
+[![Neon](https://img.shields.io/badge/Database-Neon%20PostgreSQL-00E599?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Node.js](https://img.shields.io/badge/Node.js-Express%20API-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
 [![Swing](https://img.shields.io/badge/GUI-Java%20Swing-5382a1?style=for-the-badge&logo=java&logoColor=white)](https://docs.oracle.com/javase/tutorial/uiswing/)
 [![MySQL](https://img.shields.io/badge/Database-MySQL%208.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Maven](https://img.shields.io/badge/Build-Maven%203.9-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)](https://maven.apache.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-A complete, production-grade **Desktop Hotel Management System** built with **Core Java**, **Java Swing**, **JDBC**, and **MySQL**. Developed following enterprise clean architecture patterns (Model-DAO-Service-UI), featuring role-based access control, transaction-safe billing settlements, real-time analytics, and comprehensive room lifecycle management.
+A complete, production-grade **Hotel Management System** providing dual deployment targets:
+1. **🌐 Cloud Web Service (Node.js + Express + Neon PostgreSQL)**: Zero-installation browser application deployed to Render for instant sharing with interviewers and recruiters.
+2. **🖥️ Native Desktop Application (Core Java + Java Swing + JDBC + MySQL)**: Desktop GUI application built with FlatLaf and multi-layer enterprise architecture.
+
+> 📖 **Deploying to Render?** Read the complete [Render & Neon Deployment Guide](DEPLOYMENT.md).
 
 ---
 

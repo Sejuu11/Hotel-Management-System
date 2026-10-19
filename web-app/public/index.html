@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grand Palace Hotel — Management Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- ============================================================ -->
+  <!-- 1. LOGIN SCREEN -->
+  <!-- ============================================================ -->
+  <div id="login-screen" class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="brand-icon"><i class="fa-solid fa-hotel"></i></div>
+        <h1>Grand Palace Hotel</h1>
+        <p class="subtitle">Cloud Hotel Management & Operations Portal</p>
+      </div>
+
+      <!-- Quick Demo Login Helper for Interviewers -->
+      <div class="demo-box">
+        <div class="demo-box-header">
+          <i class="fa-solid fa-sparkles"></i> <strong>Interviewer 1-Click Access</strong>
+        </div>
+        <p class="demo-hint">Click below to auto-fill credentials and test all features instantly:</p>
+        <div class="demo-buttons">
+          <button type="button" class="btn btn-demo" id="demo-admin-btn">
+            <i class="fa-solid fa-user-shield"></i> <strong>Admin</strong> (All 9 Modules)
+          </button>
+          <button type="button" class="btn btn-demo" id="demo-recep-btn">
+            <i class="fa-solid fa-bell-concierge"></i> <strong>Receptionist</strong> (Front Desk)
+          </button>
+        </div>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div id="login-alert" class="alert alert-danger" style="display: none;"></div>
+
+        <div class="form-group">
+          <label for="username"><i class="fa-solid fa-user"></i> Username</label>
+          <input type="text" id="username" class="form-control" placeholder="Enter username" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="password" class="form-control" placeholder="Enter password" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="login-submit-btn">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p><i class="fa-solid fa-database"></i> Powered by <strong>Neon PostgreSQL</strong> & <strong>Render Free Tier</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 2. MAIN APPLICATION SHELL -->
+  <!-- ============================================================ -->
+  <div id="app-screen" class="app-layout" style="display: none;">
+    
+    <!-- Top Navigation Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="sidebar-toggle" class="btn-icon mobile-only" aria-label="Toggle Sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="brand">
+          <i class="fa-solid fa-hotel brand-icon-small"></i>
+          <span class="brand-title">Grand Palace Hotel</span>
+          <span class="badge badge-accent">Cloud Web Service</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="interviewer-badge desktop-only">
+          <i class="fa-solid fa-circle-check text-success"></i> Neon PostgreSQL Connected
+        </div>
+        <div class="user-profile">
+          <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
+          <div class="user-info">
+            <span id="user-display-name" class="user-name">Administrator</span>
+            <span id="user-display-role" class="badge badge-role">ADMIN</span>
+          </div>
+        </div>
+        <button id="logout-btn" class="btn btn-outline-danger btn-sm" title="Sign Out">
+          <i class="fa-solid fa-power-off"></i> <span class="desktop-only">Logout</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Sidebar Navigation -->
+      <aside id="sidebar" class="sidebar">
+        <nav class="nav-menu">
+          <div class="nav-section-title">CORE OPERATIONS</div>
+          <a href="#dashboard" class="nav-item active" data-view="dashboard">
+            <i class="fa-solid fa-chart-pie"></i> <span>Dashboard</span>
+          </a>
+          <a href="#rooms" class="nav-item" data-view="rooms">
+            <i class="fa-solid fa-door-open"></i> <span>Room Inventory</span>
+          </a>
+          <a href="#customers" class="nav-item" data-view="customers">
+            <i class="fa-solid fa-users"></i> <span>Guest Directory</span>
+          </a>
+          <a href="#bookings" class="nav-item" data-view="bookings">
+            <i class="fa-solid fa-calendar-check"></i> <span>Bookings</span>
+          </a>
+
+          <div class="nav-section-title">FRONT DESK</div>
+          <a href="#checkin" class="nav-item" data-view="checkin">
+            <i class="fa-solid fa-bell-concierge"></i> <span>Check-In Queue</span>
+            <span id="nav-checkin-badge" class="badge badge-pill badge-primary">0</span>
+          </a>
+          <a href="#checkout" class="nav-item" data-view="checkout">
+            <i class="fa-solid fa-receipt"></i> <span>Check-Out & Billing</span>
+            <span id="nav-checkout-badge" class="badge badge-pill badge-warning">0</span>
+          </a>
+          <a href="#payments" class="nav-item" data-view="payments">
+            <i class="fa-solid fa-wallet"></i> <span>Payments Ledger</span>
+          </a>
+
+          <div class="nav-section-title">MANAGEMENT & AUDIT</div>
+          <a href="#reports" class="nav-item" data-view="reports">
+            <i class="fa-solid fa-chart-line"></i> <span>Analytics & Reports</span>
+          </a>
+          <a href="#employees" class="nav-item admin-only" data-view="employees">
+            <i class="fa-solid fa-id-badge"></i> <span>Staff & Payroll</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sys-status">
+            <span class="status-indicator online"></span>
+            <span class="status-text">Production Service</span>
+          </div>
+          <small class="sys-version">v1.0.0 (Web + Java Parity)</small>
+        </div>
+      </aside>
+
+      <!-- Main Content Container -->
+      <main id="main-content" class="content-area">
+        <!-- Rendered dynamically via JavaScript views -->
+      </main>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 3. GLOBAL MODALS -->
+  <!-- ============================================================ -->
+
+  <!-- Modal: Add / Edit Room -->
+  <div id="room-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="room-modal-title"><i class="fa-solid fa-door-open"></i> Add New Room</h3>
+        <button type="button" class="modal-close" onclick="closeModal('room-modal')">&times;</button>
+      </div>
+      <form id="room-form">
+        <div class="modal-body">
+          <input type="hidden" id="room-form-id">
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="room-form-number">Room Number *</label>
+              <input type="text" id="room-form-number" class="form-control" placeholder="e.g. 105" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="room-form-type">Room Type *</label>
+              <select id="room-form-type" class="form-control" required>
+                <option value="Single">Single (1 Bed)</option>
+                <option value="Double">Double (2 Beds)</option>
+                <option value="Deluxe">Deluxe (King Bed + View)</option>
+                <option value="Suite">Suite (Luxury Suite + Jacuzzi)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="room-form-floor">Floor Number *</label>
+              <input type="number" id="room-form-floor" class="form-control" min="1" max="20" value="1" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="room-form-price">Price per Night (₹) *</label>
+              <input type="number" id="room-form-price" class="form-control" min="100" step="50" placeholder="2500" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="room-form-status">Initial Status</label>
+            <select id="room-form-status" class="form-control">
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="RESERVED">RESERVED</option>
+              <option value="OCCUPIED">OCCUPIED</option>
+              <option value="MAINTENANCE">MAINTENANCE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="room-form-desc">Description / Amenities</label>
+            <textarea id="room-form-desc" class="form-control" rows="2" placeholder="Standard room with AC, WiFi, smart TV..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('room-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="room-form-submit">Save Room</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Customer -->
+  <div id="customer-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="customer-modal-title"><i class="fa-solid fa-user-plus"></i> Register Hotel Guest</h3>
+        <button type="button" class="modal-close" onclick="closeModal('customer-modal')">&times;</button>
+      </div>
+      <form id="customer-form">
+        <div class="modal-body">
+          <input type="hidden" id="customer-form-id">
+          <div class="form-row">
+            <div class="form-group col-8">
+              <label for="customer-form-name">Full Name *</label>
+              <input type="text" id="customer-form-name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
+            </div>
+            <div class="form-group col-4">
+              <label for="customer-form-gender">Gender *</label>
+              <select id="customer-form-gender" class="form-control" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="customer-form-phone">Phone Number *</label>
+              <input type="tel" id="customer-form-phone" class="form-control" placeholder="10-digit mobile" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="customer-form-email">Email Address</label>
+              <input type="email" id="customer-form-email" class="form-control" placeholder="guest@example.com">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="customer-form-idtype">ID Proof Type *</label>
+              <select id="customer-form-idtype" class="form-control" required>
+                <option value="Aadhaar">Aadhaar Card</option>
+                <option value="Passport">Passport</option>
+                <option value="Driving License">Driving License</option>
+                <option value="Voter ID">Voter ID</option>
+              </select>
+            </div>
+            <div class="form-group col-6">
+              <label for="customer-form-idnum">ID Number *</label>
+              <input type="text" id="customer-form-idnum" class="form-control" placeholder="e.g. 1234-5678-9012" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="customer-form-address">Residential Address</label>
+            <input type="text" id="customer-form-address" class="form-control" placeholder="City, State, Country">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('customer-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Guest</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Create Reservation -->
+  <div id="booking-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-calendar-plus"></i> New Room Reservation</h3>
+        <button type="button" class="modal-close" onclick="closeModal('booking-modal')">&times;</button>
+      </div>
+      <form id="booking-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="booking-form-customer">Select Guest *</label>
+            <select id="booking-form-customer" class="form-control" required>
+              <option value="">-- Choose registered guest --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="booking-form-room">Select Room *</label>
+            <select id="booking-form-room" class="form-control" required>
+              <option value="">-- Choose available room --</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="booking-form-checkin">Check-In Date *</label>
+              <input type="date" id="booking-form-checkin" class="form-control" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="booking-form-checkout">Expected Check-Out Date *</label>
+              <input type="date" id="booking-form-checkout" class="form-control" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="booking-form-guests">Number of Guests</label>
+              <input type="number" id="booking-form-guests" class="form-control" min="1" max="6" value="1" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="booking-form-advance">Advance Payment (₹)</label>
+              <input type="number" id="booking-form-advance" class="form-control" min="0" step="100" placeholder="0">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="booking-form-paymethod">Payment Method (if paying advance)</label>
+            <select id="booking-form-paymethod" class="form-control">
+              <option value="UPI">UPI</option>
+              <option value="CARD">Credit/Debit Card</option>
+              <option value="CASH">Cash</option>
+              <option value="BANK_TRANSFER">Bank Transfer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="booking-form-request">Special Request / Remarks</label>
+            <input type="text" id="booking-form-request" class="form-control" placeholder="e.g. Quiet room, extra pillows, late check-in">
+          </div>
+          <!-- Dynamic Live Cost Estimate Preview -->
+          <div id="booking-cost-preview" class="cost-estimate-card" style="display: none;">
+            <div class="cost-line"><span>Estimated Nights:</span> <strong id="preview-nights">0</strong></div>
+            <div class="cost-line"><span>Room Rate:</span> <span id="preview-rate">₹0</span></div>
+            <div class="cost-line total"><span>Estimated Total (incl. 12% GST):</span> <strong id="preview-total">₹0</strong></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('booking-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Confirm Reservation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Check-Out & Itemized Invoice -->
+  <div id="checkout-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-invoice-dollar"></i> Check-Out & Final Billing</h3>
+        <button type="button" class="modal-close" onclick="closeModal('checkout-modal')">&times;</button>
+      </div>
+      <form id="checkout-form">
+        <input type="hidden" id="checkout-booking-id">
+        <div class="modal-body">
+          <div class="checkout-summary-grid">
+            <div class="summary-card">
+              <span class="label">Guest Name</span>
+              <strong id="bill-guest-name">--</strong>
+            </div>
+            <div class="summary-card">
+              <span class="label">Room Number</span>
+              <strong id="bill-room-number">--</strong>
+            </div>
+            <div class="summary-card">
+              <span class="label">Stay Duration</span>
+              <strong id="bill-duration">--</strong>
+            </div>
+          </div>
+
+          <!-- Itemized Invoice Table -->
+          <table class="table invoice-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Qty / Nights</th>
+                <th class="text-right">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Room Stay Charges</td>
+                <td class="text-right" id="invoice-room-rate">₹0</td>
+                <td class="text-right" id="invoice-nights">0</td>
+                <td class="text-right font-weight-bold" id="invoice-room-total">₹0</td>
+              </tr>
+              <tr>
+                <td>Additional Services / Room Service / Laundry</td>
+                <td class="text-right">-</td>
+                <td class="text-right">-</td>
+                <td class="text-right">
+                  <input type="number" id="checkout-extra-charges" class="form-control form-control-sm text-right" style="max-width: 120px; display: inline-block;" value="0" min="0" step="50">
+                </td>
+              </tr>
+              <tr class="table-subtotal">
+                <td colspan="3" class="text-right">Subtotal:</td>
+                <td class="text-right" id="invoice-subtotal">₹0</td>
+              </tr>
+              <tr>
+                <td colspan="3" class="text-right">Goods & Services Tax (GST 12%):</td>
+                <td class="text-right" id="invoice-tax">₹0</td>
+              </tr>
+              <tr class="table-total">
+                <td colspan="3" class="text-right"><strong>Gross Total:</strong></td>
+                <td class="text-right"><strong id="invoice-gross-total">₹0</strong></td>
+              </tr>
+              <tr class="text-success">
+                <td colspan="3" class="text-right">Less: Advance Payments Received:</td>
+                <td class="text-right" id="invoice-advance-paid">- ₹0</td>
+              </tr>
+              <tr class="table-balance-due">
+                <td colspan="3" class="text-right"><strong>Net Balance Due:</strong></td>
+                <td class="text-right"><strong id="invoice-balance-due" class="text-danger">₹0</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Settlement Payment Section -->
+          <div class="settlement-box">
+            <h4><i class="fa-solid fa-credit-card"></i> Settlement Payment</h4>
+            <div class="form-row">
+              <div class="form-group col-6">
+                <label for="checkout-pay-amount">Payment Amount (₹) *</label>
+                <input type="number" id="checkout-pay-amount" class="form-control" step="0.01" required>
+              </div>
+              <div class="form-group col-6">
+                <label for="checkout-pay-method">Payment Mode *</label>
+                <select id="checkout-pay-method" class="form-control" required>
+                  <option value="CASH">Cash</option>
+                  <option value="CARD">Credit/Debit Card</option>
+                  <option value="UPI">UPI</option>
+                  <option value="BANK_TRANSFER">Bank Transfer / NEFT</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="checkout-pay-ref">Transaction Reference (Optional)</label>
+              <input type="text" id="checkout-pay-ref" class="form-control" placeholder="e.g. UPI/12345678 or Auth Code">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('checkout-modal')">Cancel</button>
+          <button type="submit" class="btn btn-success"><i class="fa-solid fa-check-double"></i> Complete Check-Out & Settle Bill</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Printable Receipt -->
+  <div id="receipt-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-print"></i> Official Hotel Receipt</h3>
+        <button type="button" class="modal-close" onclick="closeModal('receipt-modal')">&times;</button>
+      </div>
+      <div class="modal-body" id="printable-receipt-content">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('receipt-modal')">Close</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Employee (Admin Only) -->
+  <div id="employee-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="employee-modal-title"><i class="fa-solid fa-id-badge"></i> Add Hotel Employee</h3>
+        <button type="button" class="modal-close" onclick="closeModal('employee-modal')">&times;</button>
+      </div>
+      <form id="employee-form">
+        <div class="modal-body">
+          <input type="hidden" id="employee-form-id">
+          <div class="form-row">
+            <div class="form-group col-8">
+              <label for="emp-name">Full Name *</label>
+              <input type="text" id="emp-name" class="form-control" placeholder="e.g. Rajesh Khanna" required>
+            </div>
+            <div class="form-group col-4">
+              <label for="emp-gender">Gender *</label>
+              <select id="emp-gender" class="form-control" required>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="emp-phone">Phone Number *</label>
+              <input type="tel" id="emp-phone" class="form-control" placeholder="Mobile" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="emp-email">Email Address</label>
+              <input type="email" id="emp-email" class="form-control" placeholder="staff@hotel.com">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="emp-designation">Designation *</label>
+              <input type="text" id="emp-designation" class="form-control" placeholder="e.g. Manager, Receptionist" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="emp-salary">Monthly Salary (₹) *</label>
+              <input type="number" id="emp-salary" class="form-control" min="1000" step="500" placeholder="35000" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="emp-joindate">Joining Date *</label>
+              <input type="date" id="emp-joindate" class="form-control" required>
+            </div>
+            <div class="form-group col-6">
+              <label for="emp-status">Employment Status</label>
+              <select id="emp-status" class="form-control">
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="ON_LEAVE">ON_LEAVE</option>
+                <option value="TERMINATED">TERMINATED</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="emp-address">Residential Address</label>
+            <input type="text" id="emp-address" class="form-control" placeholder="City, State">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('employee-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/dashboard.js"></script>
+  <script src="/js/rooms.js"></script>
+  <script src="/js/customers.js"></script>
+  <script src="/js/bookings.js"></script>
+  <script src="/js/checkin.js"></script>
+  <script src="/js/checkout.js"></script>
+  <script src="/js/payments.js"></script>
+  <script src="/js/reports.js"></script>
+  <script src="/js/employees.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

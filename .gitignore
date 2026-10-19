@@ -10,10 +10,18 @@ target/
 .settings/
 bin/
 
+# Node.js and Web dependencies
+node_modules/
+web-app/node_modules/
+package-lock.json.bak
+dist/
+
 # Environment and sensitive configuration
 db.properties
 src/main/resources/db.properties
 .env
+.env.local
+web-app/.env
 *.log
 
 # OS generated files

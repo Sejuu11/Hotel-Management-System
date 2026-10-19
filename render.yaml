@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: hotel-management-system
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_USERNAME
+        value: admin
+      - key: DEMO_PASSWORD
+        value: admin123
