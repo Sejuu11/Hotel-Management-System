@@ -3,64 +3,208 @@ const parse = require('pg-connection-string').parse;
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+const dotenv = require('dotenv');
+
+// Load environment variables from process.cwd() as well as web-app/ and project root
+dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+const MISSING_CONFIG_MSG = 'DATABASE_URL environment variable is missing or empty. Please set DATABASE_URL in Render Dashboard > Environment.';
 
 /**
- * Builds safe connection configuration from DATABASE_URL,
- * stripping surrounding quotes, whitespace, and enabling SSL for cloud databases.
+ * Searches process.env for DATABASE_URL with tolerance for common alias names
+ * and whitespace in keys or values.
  */
-function getDatabaseConfig() {
-  let rawUrl = (process.env.DATABASE_URL || '').trim();
-  // Strip surrounding quotes if present (common when pasting into dashboards)
-  rawUrl = rawUrl.replace(/^["']|["']$/g, '').trim();
-
-  if (!rawUrl) {
-    return {
-      host: 'localhost',
-      port: 5432,
-      database: 'hotel_management',
-    };
+function getRawDatabaseUrl() {
+  if (process.env.DATABASE_URL && typeof process.env.DATABASE_URL === 'string' && process.env.DATABASE_URL.trim()) {
+    return process.env.DATABASE_URL.trim();
   }
 
-  try {
-    const config = parse(rawUrl);
-
-    // Clean individual fields if quotes remained
-    if (config.host) config.host = config.host.replace(/^["']|["']$/g, '').trim();
-    if (config.database) config.database = config.database.replace(/^["']|["']$/g, '').trim();
-    if (config.user) config.user = config.user.replace(/^["']|["']$/g, '').trim();
-    if (config.password) config.password = config.password.replace(/^["']|["']$/g, '').trim();
-
-    // If connecting to a remote host (e.g. Neon, AWS), enforce SSL with rejectUnauthorized: false
-    const isLocal = !config.host || config.host === 'localhost' || config.host === '127.0.0.1';
-    if (!isLocal) {
-      config.ssl = { rejectUnauthorized: false };
+  const validKeys = ['database_url', 'postgres_url', 'postgresql_url', 'neon_database_url'];
+  for (const [key, val] of Object.entries(process.env)) {
+    if (validKeys.includes(key.trim().toLowerCase())) {
+      if (val && typeof val === 'string' && val.trim().length > 0) {
+        return val.trim();
+      }
     }
+  }
 
-    config.max = 10;
-    config.idleTimeoutMillis = 30000;
-    config.connectionTimeoutMillis = 15000; // 15 seconds for Neon cold starts
+  return '';
+}
 
-    return config;
+/**
+ * Sanitizes connection string:
+ * - Strips enclosing quotes ("...", '...', `...`)
+ * - Strips leading variable assignment (DATABASE_URL=...)
+ * - Strips CLI psql invocation prefix (psql '...')
+ */
+function sanitizeDatabaseUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let url = raw.trim();
+
+  // Strip enclosing quotes
+  url = url.replace(/^["'`]|["'`]$/g, '').trim();
+
+  // Strip leading variable assignment
+  if (/^database_url\s*=\s*/i.test(url)) {
+    url = url.replace(/^database_url\s*=\s*/i, '').trim();
+    url = url.replace(/^["'`]|["'`]$/g, '').trim();
+  }
+
+  // Strip psql prefix if copied from CLI tab in Neon Connect
+  if (/^psql\s+/i.test(url)) {
+    url = url.replace(/^psql\s+/i, '').trim();
+    url = url.replace(/^["'`]|["'`]$/g, '').trim();
+  }
+
+  return url;
+}
+
+/**
+ * Parses connection string into explicit Pool config.
+ * Prohibits localhost fallback in production.
+ */
+function parseDatabaseConfig(cleanUrl) {
+  if (!cleanUrl) return null;
+
+  let host;
+  let port = 5432;
+  let user;
+  let password;
+  let database;
+
+  // 1. Try WHATWG URL parser
+  try {
+    const normalized = cleanUrl.replace(/^postgres:\/\//i, 'postgresql://');
+    const u = new URL(normalized);
+    host = u.hostname;
+    port = parseInt(u.port, 10) || 5432;
+    user = u.username ? decodeURIComponent(u.username) : undefined;
+    password = u.password ? decodeURIComponent(u.password) : undefined;
+    database = (u.pathname || '').replace(/^\//, '') || undefined;
   } catch (err) {
-    console.error('⚠️ [DB] Failed to parse DATABASE_URL:', err.message);
-    return { connectionString: rawUrl, ssl: { rejectUnauthorized: false } };
+    // 2. Fall back to pg-connection-string
+    try {
+      const parsed = parse(cleanUrl);
+      host = parsed.host;
+      port = parseInt(parsed.port, 10) || 5432;
+      user = parsed.user;
+      password = parsed.password;
+      database = parsed.database;
+    } catch (e2) {
+      // 3. Fall back to regex
+      const m = cleanUrl.match(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/);
+      if (m) {
+        user = decodeURIComponent(m[1]);
+        password = decodeURIComponent(m[2]);
+        host = m[3];
+        port = parseInt(m[4], 10) || 5432;
+        database = m[5];
+      }
+    }
+  }
+
+  if (!host) {
+    return null;
+  }
+
+  // Clean individual fields of leftover quotes
+  if (host) host = host.replace(/^["']|["']$/g, '').trim();
+  if (database) database = database.replace(/^["']|["']$/g, '').trim();
+  if (user) user = user.replace(/^["']|["']$/g, '').trim();
+  if (password) password = password.replace(/^["']|["']$/g, '').trim();
+
+  // In production, prohibit connecting to localhost
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  if (isProduction && isLocalHost) {
+    throw new Error('Localhost PostgreSQL connection is prohibited in production. Please set Render process.env.DATABASE_URL.');
+  }
+
+  // SSL config: for remote hosts (Neon, etc.), enforce rejectUnauthorized: false
+  const ssl = isLocalHost ? false : { rejectUnauthorized: false };
+
+  return {
+    host,
+    port,
+    user,
+    password,
+    database,
+    ssl,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 15000,
+  };
+}
+
+/**
+ * Dummy pool used when DATABASE_URL is missing.
+ * Prevents node-postgres from silently falling back to localhost:5432.
+ */
+class UnconfiguredPool {
+  query() {
+    const err = new Error(MISSING_CONFIG_MSG);
+    err.code = 'CONFIG_MISSING';
+    return Promise.reject(err);
+  }
+  connect() {
+    const err = new Error(MISSING_CONFIG_MSG);
+    err.code = 'CONFIG_MISSING';
+    return Promise.reject(err);
+  }
+  on() {
+    return this;
+  }
+  end() {
+    return Promise.resolve();
   }
 }
 
-const pool = new Pool(getDatabaseConfig());
+const rawUrl = getRawDatabaseUrl();
+const cleanUrl = sanitizeDatabaseUrl(rawUrl);
+const dbConfig = parseDatabaseConfig(cleanUrl);
+const isConfigured = Boolean(dbConfig);
 
-pool.on('error', (err) => {
-  const errMsg = err.message || (err.errors ? err.errors.map(e => e.message).join('; ') : err.code);
-  console.error('⚠️ [DB Pool Error]:', errMsg);
-});
+const pool = isConfigured ? new Pool(dbConfig) : new UnconfiguredPool();
+
+if (isConfigured && typeof pool.on === 'function') {
+  pool.on('error', (err) => {
+    const errMsg = err.message || (err.errors ? err.errors.map(e => e.message).join('; ') : err.code);
+    console.error('⚠️ [DB Pool Error]:', errMsg);
+  });
+}
+
+function getSafeConfigInfo() {
+  if (!dbConfig) {
+    return {
+      configured: false,
+      host: null,
+      database: null,
+      isPooled: false,
+      ssl: false,
+    };
+  }
+  return {
+    configured: true,
+    host: dbConfig.host || null,
+    database: dbConfig.database || null,
+    isPooled: Boolean(dbConfig.host && dbConfig.host.includes('-pooler')),
+    ssl: Boolean(dbConfig.ssl),
+  };
+}
 
 let isInitialized = false;
 let initPromise = null;
 
 async function query(text, params) {
-  // If not initialized and DATABASE_URL is available, attempt initialization once
-  if (!isInitialized && process.env.DATABASE_URL) {
+  if (!isConfigured) {
+    const err = new Error(MISSING_CONFIG_MSG);
+    err.code = 'CONFIG_MISSING';
+    throw err;
+  }
+
+  if (!isInitialized) {
     try {
       await initDatabase();
     } catch (e) {
@@ -75,7 +219,13 @@ async function query(text, params) {
 }
 
 async function getClient() {
-  if (!isInitialized && process.env.DATABASE_URL) {
+  if (!isConfigured) {
+    const err = new Error(MISSING_CONFIG_MSG);
+    err.code = 'CONFIG_MISSING';
+    throw err;
+  }
+
+  if (!isInitialized) {
     try {
       await initDatabase();
     } catch (e) {}
@@ -92,9 +242,8 @@ async function initDatabase() {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    const rawUrl = (process.env.DATABASE_URL || '').trim();
-    if (!rawUrl) {
-      console.warn('⚠️ [DB] DATABASE_URL is not set. Database initialization skipped.');
+    if (!isConfigured) {
+      console.warn('⚠️ [DB] DATABASE_URL is not configured. Database initialization skipped. Localhost fallback disabled.');
       return false;
     }
 
@@ -219,4 +368,6 @@ module.exports = {
   query,
   getClient,
   initDatabase,
+  isConfigured,
+  getSafeConfigInfo,
 };

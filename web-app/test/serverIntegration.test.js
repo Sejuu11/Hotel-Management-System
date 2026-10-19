@@ -25,6 +25,14 @@ test('API Integration: GET /api/health returns status UP', async () => {
   const data = await res.json();
   assert.equal(data.status, 'UP');
   assert.ok(data.timestamp);
+  assert.ok(data.config);
+  assert.equal(typeof data.config.hasDatabaseUrl, 'boolean');
+  assert.equal(typeof data.config.hasJwtSecret, 'boolean');
+  // Confirm no connection refusal to localhost is reported
+  if (data.databaseError) {
+    assert.doesNotMatch(data.databaseError, /ECONNREFUSED.*(127\.0\.0\.1|::1)/);
+    assert.match(data.databaseError, /DATABASE_URL/);
+  }
 });
 
 test('API Integration: GET /api/auth/demo-credentials returns demo roles', async () => {
@@ -71,4 +79,20 @@ test('Static Serving: GET /js/app.js returns client JavaScript', async () => {
   assert.equal(res.status, 200);
   const text = await res.text();
   assert.match(text, /checkInitialSession/);
+});
+
+test('Database Safety: Unconfigured pool rejects queries with clear error and never connects to localhost', async () => {
+  const { pool, isConfigured } = require('../src/db');
+  if (!isConfigured) {
+    await assert.rejects(
+      async () => {
+        await pool.query('SELECT 1');
+      },
+      (err) => {
+        assert.equal(err.code, 'CONFIG_MISSING');
+        assert.match(err.message, /DATABASE_URL environment variable is missing or empty/);
+        return true;
+      }
+    );
+  }
 });

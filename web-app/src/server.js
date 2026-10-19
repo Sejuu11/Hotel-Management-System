@@ -4,9 +4,12 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const morgan = require('morgan');
-require('dotenv').config();
+const dotenv = require('dotenv');
+dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const { pool, initDatabase } = require('./db');
+const { pool, initDatabase, isConfigured, getSafeConfigInfo } = require('./db');
 const errorHandler = require('./middleware/errorHandler');
 
 // Route handlers
@@ -57,7 +60,7 @@ app.get('/api/health', async (req, res) => {
     dbError = err.message || (err.errors ? err.errors.map(e => e.message).join('; ') : err.code);
   }
 
-  const hasDbUrl = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim());
+  const safeDbInfo = getSafeConfigInfo();
   const hasJwt = Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET.trim());
 
   res.json({
@@ -65,9 +68,12 @@ app.get('/api/health', async (req, res) => {
     database: dbStatus,
     ...(dbError ? { databaseError: dbError } : {}),
     config: {
-      hasDatabaseUrl: hasDbUrl,
+      hasDatabaseUrl: safeDbInfo.configured,
       hasJwtSecret: hasJwt,
       environment: process.env.NODE_ENV || 'development',
+      dbHost: safeDbInfo.host,
+      dbName: safeDbInfo.database,
+      isPooled: safeDbInfo.isPooled,
     },
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -99,16 +105,21 @@ app.use(errorHandler);
 
 // Start server
 async function startServer() {
-  // Trigger background database initialization without blocking port binding
-  initDatabase().catch(err => {
-    console.warn('⚠️ [Startup] Initial database connection note:', err.message);
-  });
+  if (isConfigured) {
+    // Trigger background database initialization without blocking port binding
+    initDatabase().catch(err => {
+      console.warn('⚠️ [Startup] Initial database connection note:', err.message);
+    });
+  } else {
+    console.warn('⚠️ [Startup] DATABASE_URL is not configured. Database initialization skipped. Localhost fallback disabled.');
+  }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
     console.log(`🏨 Grand Palace Hotel Management System is LIVE!`);
     console.log(`🌐 Local URL:  http://localhost:${PORT}`);
     console.log(`🚀 Network:    http://0.0.0.0:${PORT}`);
+    console.log(`📦 Database:   ${isConfigured ? 'Configured (Neon PostgreSQL)' : 'NOT CONFIGURED (DATABASE_URL required)'}`);
     console.log(`📊 Mode:       ${process.env.NODE_ENV || 'development'}`);
     console.log(`====================================================`);
   });
