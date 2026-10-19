@@ -2,11 +2,31 @@
  * Authentication Module & Session Management
  */
 
+let cachedDemoCreds = {
+  admin: { username: 'admin', password: 'admin123' },
+  receptionist: { username: 'receptionist', password: 'recep123' },
+};
+
+async function fetchDemoCredentials() {
+  try {
+    const data = await API.get('/auth/demo-credentials');
+    if (data && data.accounts) {
+      if (data.accounts.admin) cachedDemoCreds.admin = data.accounts.admin;
+      if (data.accounts.receptionist) cachedDemoCreds.receptionist = data.accounts.receptionist;
+    }
+  } catch (err) {
+    // Non-fatal; fallback to defaults
+  }
+}
+
 function initAuth() {
   const loginForm = document.getElementById('login-form');
   const demoAdminBtn = document.getElementById('demo-admin-btn');
   const demoRecepBtn = document.getElementById('demo-recep-btn');
   const logoutBtn = document.getElementById('logout-btn');
+
+  // Pre-fetch dynamic demo credentials configured on the server
+  fetchDemoCredentials();
 
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -17,18 +37,20 @@ function initAuth() {
 
   // 1-Click Demo Buttons for Interviewers
   if (demoAdminBtn) {
-    demoAdminBtn.addEventListener('click', () => {
-      document.getElementById('username').value = 'admin';
-      document.getElementById('password').value = 'admin123';
-      handleLogin();
+    demoAdminBtn.addEventListener('click', async () => {
+      const creds = cachedDemoCreds.admin || { username: 'admin', password: 'admin123' };
+      document.getElementById('username').value = creds.username;
+      document.getElementById('password').value = creds.password;
+      await handleLogin();
     });
   }
 
   if (demoRecepBtn) {
-    demoRecepBtn.addEventListener('click', () => {
-      document.getElementById('username').value = 'receptionist';
-      document.getElementById('password').value = 'recep123';
-      handleLogin();
+    demoRecepBtn.addEventListener('click', async () => {
+      const creds = cachedDemoCreds.receptionist || { username: 'receptionist', password: 'recep123' };
+      document.getElementById('username').value = creds.username;
+      document.getElementById('password').value = creds.password;
+      await handleLogin();
     });
   }
 
@@ -68,7 +90,8 @@ async function handleLogin() {
     showAppScreen(data.user);
     navigateTo('dashboard');
   } catch (err) {
-    alertBox.textContent = err.message || 'Login failed. Please check credentials.';
+    let msg = err.message || 'Login failed. Please check credentials.';
+    alertBox.innerHTML = `<strong><i class="fa-solid fa-triangle-exclamation"></i> Error:</strong> ${msg}`;
     alertBox.style.display = 'block';
   } finally {
     submitBtn.disabled = false;

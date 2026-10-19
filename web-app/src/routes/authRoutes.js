@@ -16,9 +16,10 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
+    const cleanUsername = username.trim();
     const result = await query(
       'SELECT id, username, password, full_name, role FROM users WHERE username = $1',
-      [username.trim()]
+      [cleanUsername]
     );
 
     if (result.rows.length === 0) {
@@ -31,18 +32,23 @@ router.post('/login', async (req, res, next) => {
     const user = result.rows[0];
     let passwordMatches = false;
 
-    // Handle bcrypt hashes
+    // 1. Handle bcrypt hashes ($2a$, $2b$, $2y$)
     if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$')) {
       passwordMatches = await bcrypt.compare(password, user.password);
     } 
-    // Handle legacy salt:hash from Java application if present
+    // 2. Handle legacy salt:hash from Java application if present
     else if (user.password.includes(':')) {
       const crypto = require('crypto');
       const [salt, expectedHash] = user.password.split(':');
       const computedHash = crypto.createHash('sha256').update(salt + password).digest('hex');
-      passwordMatches = crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(computedHash));
-    } else {
-      // Direct comparison fallback
+      try {
+        passwordMatches = crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(computedHash));
+      } catch (e) {
+        passwordMatches = false;
+      }
+    }
+    // 3. Direct plaintext fallback (dev/testing)
+    else {
       passwordMatches = user.password === password;
     }
 
@@ -98,20 +104,25 @@ router.get('/me', authenticate, (req, res) => {
 
 // GET /api/auth/demo-credentials
 router.get('/demo-credentials', (req, res) => {
+  const adminUser = (process.env.DEMO_USERNAME || 'admin').trim();
+  const adminPass = (process.env.DEMO_PASSWORD || 'admin123').trim();
+
   res.json({
     success: true,
-    accounts: [
-      {
+    accounts: {
+      admin: {
         role: 'Administrator',
-        username: process.env.DEMO_USERNAME || 'admin',
+        username: adminUser,
+        password: adminPass,
         description: 'Full access to all 9 hotel modules, staff management, and system settings.',
       },
-      {
+      receptionist: {
         role: 'Receptionist',
         username: 'receptionist',
+        password: 'recep123',
         description: 'Front desk operations (Dashboard, Bookings, Check-In, Check-Out, Guests, Rooms, Reports).',
       },
-    ],
+    },
   });
 });
 

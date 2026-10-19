@@ -42,23 +42,34 @@ if (process.env.NODE_ENV !== 'production') {
 // Serve frontend static assets
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Health check endpoint
+// Diagnostic health check endpoint
 app.get('/api/health', async (req, res) => {
   let dbStatus = 'DISCONNECTED';
+  let dbError = null;
+
   try {
-    const dbRes = await pool.query('SELECT NOW()');
+    const dbRes = await pool.query('SELECT NOW() AS now, current_database() AS db');
     if (dbRes.rows.length > 0) {
-      dbStatus = 'CONNECTED';
+      dbStatus = `CONNECTED (db: ${dbRes.rows[0].db})`;
     }
   } catch (err) {
-    dbStatus = `ERROR: ${err.message}`;
+    dbStatus = 'DISCONNECTED';
+    dbError = err.message || (err.errors ? err.errors.map(e => e.message).join('; ') : err.code);
   }
+
+  const hasDbUrl = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim());
+  const hasJwt = Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET.trim());
 
   res.json({
     status: 'UP',
     database: dbStatus,
+    ...(dbError ? { databaseError: dbError } : {}),
+    config: {
+      hasDatabaseUrl: hasDbUrl,
+      hasJwtSecret: hasJwt,
+      environment: process.env.NODE_ENV || 'development',
+    },
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
     uptime: process.uptime(),
   });
 });
@@ -86,13 +97,12 @@ app.get('*', (req, res, next) => {
 // Global error handler
 app.use(errorHandler);
 
-// Start server after database initialization
+// Start server
 async function startServer() {
-  try {
-    await initDatabase();
-  } catch (err) {
-    console.error('⚠️ Database initialization warning (server will still start):', err.message);
-  }
+  // Trigger background database initialization without blocking port binding
+  initDatabase().catch(err => {
+    console.warn('⚠️ [Startup] Initial database connection note:', err.message);
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);

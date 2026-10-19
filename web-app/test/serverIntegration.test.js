@@ -32,11 +32,11 @@ test('API Integration: GET /api/auth/demo-credentials returns demo roles', async
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.equal(data.success, true);
-  assert.ok(Array.isArray(data.accounts));
-  assert.equal(data.accounts.length, 2);
-  assert.equal(data.accounts[0].role, 'Administrator');
-  assert.equal(data.accounts[1].role, 'Receptionist');
+  assert.ok(data.accounts);
+  assert.equal(data.accounts.admin.role, 'Administrator');
+  assert.equal(data.accounts.receptionist.role, 'Receptionist');
 });
+
 
 test('API Integration: POST /api/auth/login with missing inputs returns 400', async () => {
   const res = await fetch(`${BASE_URL}/api/auth/login`, {
